@@ -1,0 +1,40 @@
+{
+  "name": "@atelierdisko/postcss-preset",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "prepare": "husky install"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vanilla-extract/esbuild-plugin": "^2.1.0",
+    "esbuild": "^0.14.49",
+    "postcss-extend-rule": "^4.0.0",
+    "postcss-import": "^14.1.0",
+    "postcss-normalize": "^10.0.1",
+    "postcss-preset-env": "^7.7.2",
+    "postcss-value-parser": "^4.2.0",
+    "source-map": "^0.7.4"
+  },
+  "devDependencies": {
+    "husky": "^8.0.1",
+    "lint-staged": "^13.0.3",
+    "postcss": "^8.4.0",
+    "prettier": "^2.7.1"
+  },
+  "peerDependencies": {
+    "postcss": "^8.4.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,css}": "prettier --write"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/atelierdisko/postcss-js-styles.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/atelierdisko"
+  }
+}
