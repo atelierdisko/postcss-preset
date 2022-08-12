@@ -1,6 +1,6 @@
 {
   "name": "@atelierdisko/postcss-preset",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -32,7 +32,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/atelierdisko/postcss-js-styles.git"
+    "url": "https://github.com/atelierdisko/postcss-preset.git"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/atelierdisko"
