@@ -1,5 +1,6 @@
 "use strict";
 
+const fs = require("fs");
 const path = require("path");
 const esbuild = require("esbuild");
 const { parse } = require("postcss");
@@ -8,6 +9,7 @@ const extractFromCss = require("./lib/extractFromCss.js");
 const writeExportsToFile = require("./lib/writeExportsToFile");
 const { isPlainObject } = require("./lib/helpers");
 const logErrorFromSourceMap = require("./lib/logErrorFromSourceMap");
+const { default: DtsCreator } = require("typed-css-modules");
 
 const cwd = process.cwd();
 
@@ -110,12 +112,51 @@ async function importFromModule(inputFile) {
   return { imports, css };
 }
 
+function fileExists(filepath) {
+  return new Promise((resolve) => {
+    fs.access(filepath, fs.constants.F_OK, (error) => {
+      resolve(!error);
+    });
+  });
+}
+
+const internalPlugin = () => {
+  return {
+    postcssPlugin: "postcss-preset-internal-dts",
+    prepare() {
+      let creator = new DtsCreator();
+      return {
+        OnceExit: async function (root, { result }) {
+          const { file } = root.source.input;
+          if (file.match(/\.module\.css$/)) {
+            const css = result.root.toString();
+            if (css.trim()) {
+              creator.create(file, css).then((content) => {
+                content.writeFile().catch((err) => console.error(err));
+              });
+            } else {
+              // Remove d.ts file when empty
+              const name = `${file}.d.ts`;
+              if (await fileExists(name)) {
+                await fs.promises.rm(name);
+              }
+            }
+          }
+        },
+      };
+    },
+  };
+};
+
+internalPlugin.postcss = true;
+
 const postcssPlugin = (options = {}) => {
   options = {
     postcssNormalize: {},
     postcssExtendRule: {},
     presetEnv: {},
     importFromModules: [],
+    emitDeclaration: false,
     exportTo: [],
     ...options,
   };
@@ -179,6 +220,7 @@ const postcssPlugin = (options = {}) => {
           }
         },
       }).plugins,
+      ...(options.emitDeclaration ? [internalPlugin(options)] : []),
     ],
   };
 };

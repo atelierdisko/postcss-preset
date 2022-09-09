@@ -1,22 +1,29 @@
 {
   "name": "@atelierdisko/postcss-preset",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "",
   "main": "index.js",
   "scripts": {
     "prepare": "husky install"
+  },
+  "bin": {
+    "gen-css-types": "./cli.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@vanilla-extract/esbuild-plugin": "^2.1.0",
     "esbuild": "^0.14.49",
+    "glob": "^8.0.3",
+    "ora": "^6.1.2",
     "postcss-extend-rule": "^4.0.0",
     "postcss-import": "^14.1.0",
+    "postcss-load-config": "^4.0.1",
     "postcss-normalize": "^10.0.1",
     "postcss-preset-env": "^7.7.2",
     "postcss-value-parser": "^4.2.0",
-    "source-map": "^0.7.4"
+    "source-map": "^0.7.4",
+    "typed-css-modules": "^0.7.2"
   },
   "devDependencies": {
     "husky": "^8.0.1",
