@@ -1,38 +1,33 @@
 {
   "name": "@atelierdisko/postcss-preset",
-  "version": "0.1.2",
+  "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "prepare": "husky install"
   },
   "bin": {
-    "gen-css-types": "./cli.js"
+    "gen-css-types": "./cli.mjs"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@vanilla-extract/esbuild-plugin": "^2.1.0",
-    "esbuild": "^0.14.49",
-    "glob": "^8.0.3",
-    "ora": "^6.1.2",
-    "postcss-extend-rule": "^4.0.0",
-    "postcss-import": "^14.1.0",
+    "@vanilla-extract/esbuild-plugin": "^2.2.2",
+    "esbuild": "^0.17.19",
+    "postcss-import": "^15.1.0",
     "postcss-load-config": "^4.0.1",
-    "postcss-normalize": "^10.0.1",
-    "postcss-preset-env": "^7.7.2",
+    "postcss-preset-env": "^8.4.1",
     "postcss-value-parser": "^4.2.0",
-    "source-map": "^0.7.4",
-    "typed-css-modules": "^0.7.2"
+    "source-map": "^0.7.4"
   },
   "devDependencies": {
-    "husky": "^8.0.1",
-    "lint-staged": "^13.0.3",
-    "postcss": "^8.4.0",
-    "prettier": "^2.7.1"
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.2",
+    "prettier": "^2.8.8"
   },
   "peerDependencies": {
-    "postcss": "^8.4.0"
+    "happy-css-modules": "^2.1",
+    "postcss": "^8.4"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,css}": "prettier --write"

@@ -1,15 +1,14 @@
 "use strict";
 
-const fs = require("fs");
 const path = require("path");
 const esbuild = require("esbuild");
 const { parse } = require("postcss");
 const { vanillaExtractPlugin } = require("@vanilla-extract/esbuild-plugin");
 const extractFromCss = require("./lib/extractFromCss.js");
-const writeExportsToFile = require("./lib/writeExportsToFile");
-const { isPlainObject } = require("./lib/helpers");
+const writeExportsToFile = require("./lib/writeGlobalDataToFile");
+const { isPlainObject, resolvePath } = require("./lib/helpers");
 const logErrorFromSourceMap = require("./lib/logErrorFromSourceMap");
-const { default: DtsCreator } = require("typed-css-modules");
+const generateCssFromGlobalData = require("./lib/generateCssFromGlobalData");
 
 const cwd = process.cwd();
 
@@ -32,18 +31,15 @@ function mergeImports(target, source) {
     }
   }
 
-  if (
-    source.hasOwnProperty("exports") &&
-    source.exports.hasOwnProperty("customProperties")
-  ) {
-    target.exports ??= { customProperties: new Map() };
-    source.exports.customProperties.forEach((rules, media) => {
+  if (source.hasOwnProperty("responsiveCustomProperties")) {
+    target.responsiveCustomProperties ??= new Map();
+    source.responsiveCustomProperties.forEach((rules, media) => {
       let currentMedia;
-      if (target.exports.customProperties.has(media)) {
-        currentMedia = target.exports.customProperties.get(media);
+      if (target.responsiveCustomProperties.has(media)) {
+        currentMedia = target.responsiveCustomProperties.get(media);
       } else {
         currentMedia = new Map();
-        target.exports.customProperties.set(media, currentMedia);
+        target.responsiveCustomProperties.set(media, currentMedia);
       }
       rules.forEach((rule, key) => {
         currentMedia.set(key, rule);
@@ -56,6 +52,7 @@ function mergeImports(target, source) {
 
 // Create module from String and require the export
 function requireFromString(src, filename, meta) {
+  // noinspection JSPotentiallyInvalidConstructorUsage
   const mdl = new module.constructor();
   mdl.paths = module.paths;
   try {
@@ -105,6 +102,7 @@ async function importFromModule(inputFile) {
           result
         )
       );
+      css += generateCssFromGlobalData(exported);
       mergeImports(imports, exported);
     }
   }
@@ -112,51 +110,11 @@ async function importFromModule(inputFile) {
   return { imports, css };
 }
 
-function fileExists(filepath) {
-  return new Promise((resolve) => {
-    fs.access(filepath, fs.constants.F_OK, (error) => {
-      resolve(!error);
-    });
-  });
-}
-
-const internalPlugin = () => {
-  return {
-    postcssPlugin: "postcss-preset-internal-dts",
-    prepare() {
-      let creator = new DtsCreator();
-      return {
-        OnceExit: async function (root, { result }) {
-          const { file } = root.source.input;
-          if (file.match(/\.module\.css$/)) {
-            const css = result.root.toString();
-            if (css.trim()) {
-              creator.create(file, css).then((content) => {
-                content.writeFile().catch((err) => console.error(err));
-              });
-            } else {
-              // Remove d.ts file when empty
-              const name = `${file}.d.ts`;
-              if (await fileExists(name)) {
-                await fs.promises.rm(name);
-              }
-            }
-          }
-        },
-      };
-    },
-  };
-};
-
-internalPlugin.postcss = true;
-
 const postcssPlugin = (options = {}) => {
   options = {
-    postcssNormalize: {},
     postcssExtendRule: {},
     presetEnv: {},
     importFromModules: [],
-    emitDeclaration: false,
     exportTo: [],
     ...options,
   };
@@ -174,53 +132,91 @@ const postcssPlugin = (options = {}) => {
   const importFrom = useResolved(async () => {
     const paths = options.importFromModules;
     const imports = {};
-    let css = "";
-    for (const path of paths) {
-      const fromModule = await importFromModule(path);
+    let cssFiles = new Map();
+    for (const filePath of paths) {
+      const fromModule = await importFromModule(filePath);
       mergeImports(imports, fromModule.imports);
-      css += "\n";
-      css += fromModule.css;
+      cssFiles.set(filePath, fromModule.css);
     }
-    return imports;
+    return { imports, cssFiles };
   });
+
+  const internalPlugin = () => {
+    return {
+      postcssPlugin: "@atelierdisko/postcss-preset-internal",
+      prepare() {
+        let importedFiles = new Set();
+        let importedCSSNodes = new Set();
+
+        return {
+          Once: async (root, postcssHelpers) => {
+            const { cssFiles } = await importFrom();
+
+            for (let [filePath, css] of cssFiles) {
+              const resolvedPath = resolvePath(filePath);
+
+              if (importedFiles.has(resolvedPath)) {
+                continue;
+              }
+
+              importedFiles.add(resolvedPath);
+
+              postcssHelpers.result.messages.push({
+                type: "dependency",
+                plugin: "postcss-global-data",
+                file: resolvedPath,
+                parent: root.source?.input?.file,
+              });
+
+              const parsed = postcssHelpers.postcss.parse(css, {
+                from: resolvedPath,
+              });
+
+              parsed?.each?.((node) => {
+                root.append(node);
+                importedCSSNodes.add(node);
+              });
+            }
+
+            if (process.env.NODE_ENV === "development") {
+              const { imports } = await importFrom();
+              for (const path of options.exportTo) {
+                await writeExportsToFile(path, imports);
+              }
+              return [];
+            }
+          },
+          OnceExit: async () => {
+            importedCSSNodes.forEach((node) => {
+              node.remove();
+            });
+            importedCSSNodes = new Set();
+            importedFiles = new Set();
+          },
+        };
+      },
+    };
+  };
+
+  internalPlugin.postcss = true;
 
   return {
     postcssPlugin: "@atelierdisko/postcss-preset",
     plugins: [
+      internalPlugin(options),
       require("postcss-import")(options),
-      require("postcss-normalize")(options.postcssNormalize),
-      require("postcss-extend-rule")(options.postcssExtendRule),
       ...require("postcss-preset-env")({
         stage: 3,
         features: {
           "custom-properties": {
-            preserve: true,
-            disableDeprecationNotice: true,
-            importFrom,
+            preserve: false,
           },
           "custom-media-queries": {
             preserve: false,
-            importFrom,
           },
           "nesting-rules": true,
         },
-
-        exportTo: async ({ customMedia, customProperties }) => {
-          if (process.env.NODE_ENV === "development") {
-            const { exports } = await importFrom();
-            for (const path of options.exportTo) {
-              await writeExportsToFile(
-                path,
-                customMedia,
-                customProperties,
-                exports
-              );
-            }
-            return [];
-          }
-        },
       }).plugins,
-      ...(options.emitDeclaration ? [internalPlugin(options)] : []),
     ],
   };
 };
