@@ -20,6 +20,7 @@ const main = async () => {
         postcssConfig: "./postcss.config.js",
         cache: false,
         cwd: process.cwd(),
+        logLevel: "silent"
     })
         .catch((e) => {
             console.error(e);
